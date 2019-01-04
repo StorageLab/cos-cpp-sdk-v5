@@ -6,6 +6,7 @@
 #include "op/object_op.h"
 #include "op/service_op.h"
 #include "util/simple_mutex.h"
+#include "Poco/SharedPtr.h"
 
 namespace qcloud_cos {
 
@@ -17,6 +18,9 @@ public:
     explicit CosAPI(CosConfig& config);
 
     ~CosAPI();
+
+    /// \brief 设置密钥
+    void SetCredentail(const std::string& ak, const std::string& sk, const std::string& token);
 
     /// \brief 获取 Bucket 所在的地域信息
     std::string GetBucketLocation(const std::string& bucket_name);
@@ -60,6 +64,15 @@ public:
     ///
     /// \return 本次请求的调用情况(如状态码等)
     CosResult PutBucket(const PutBucketReq& request, PutBucketResp* response);
+
+    /// \brief 确认Bucket是否存在
+    ///        (详见:https://cloud.tencent.com/document/product/436/7735)
+    ///
+    /// \param req  HeadBucket请求
+    /// \param resp HeadBucket返回
+    ///
+    /// \return 本次请求的调用情况(如状态码等)
+    CosResult HeadBucket(const HeadBucketReq& request, HeadBucketResp* response);
 
     /// \brief 列出该Bucket下的部分或者全部Object, 需要对Bucket有Read 权限
     ///        详见: https://www.qcloud.com/document/product/436/7734
@@ -394,12 +407,15 @@ private:
     void CosUInit();
 
 private:
+    // Be careful with the m_config order
+    Poco::SharedPtr<CosConfig> m_config;
     ObjectOp m_object_op; // 内部封装object相关的操作
     BucketOp m_bucket_op; // 内部封装bucket相关的操作
     ServiceOp m_service_op; // 内部封装service相关的操作
 
     static SimpleMutex s_init_mutex;
-    static int s_init;
+    static bool s_init;
+    static bool s_poco_init;
     static int s_cos_obj_num;
 };
 

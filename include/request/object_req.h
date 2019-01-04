@@ -23,12 +23,7 @@ class ObjectReq : public BaseReq {
 public:
     ObjectReq(const std::string& bucket_name, const std::string& object_name)
         : m_bucket_name(bucket_name) {
-        if (StringUtil::StringStartsWith(object_name, "/")) {
-            m_object_name = object_name.substr(1);
-        } else {
-            m_object_name = object_name;
-        }
-        m_path = "/" + m_object_name;
+        SetObjectName(object_name);
     }
 
     virtual ~ObjectReq() { }
@@ -37,7 +32,14 @@ public:
     std::string GetBucketName() const { return m_bucket_name; }
     void SetBucketName(const std::string& bucket_name) { m_bucket_name = bucket_name; }
     std::string GetObjectName() const { return m_object_name; }
-    void SetObjectName(const std::string& object_name) { m_object_name = object_name; }
+    void SetObjectName(const std::string& object_name) {
+        if (StringUtil::StringStartsWith(object_name, "/")) {
+            m_object_name = object_name.substr(1);
+        } else {
+            m_object_name = object_name;
+        }
+        m_path = "/" + m_object_name;
+    }
 
 private:
     std::string m_bucket_name;
@@ -211,7 +213,7 @@ public:
         AddHeader("x-cos-meta-" + key, value);
     }
 
-    /// x-cos-storage-class 设置 Object 的存储级别，枚举值：STANDARD,STANDARD_IA，NEARLINE，
+    /// x-cos-storage-class 设置 Object 的存储级别，枚举值：STANDARD,STANDARD_IA，
     /// 默认值：STANDARD（目前仅支持华南园区）
     void SetXCosStorageClass(const std::string& storage_class) {
         AddHeader("x-cos-storage-class", storage_class);
@@ -244,6 +246,11 @@ public:
         AddHeader("x-cos-grant-full-control", str);
     }
 
+    /// 设置Server端加密使用的算法, 目前支持AES256
+    void SetXCosServerSideEncryption(const std::string& str) {
+        AddHeader("x-cos-server-side-encryption", str);
+    }
+
 protected:
     PutObjectReq(const std::string& bucket_name,
                  const std::string& object_name)
@@ -260,14 +267,28 @@ public:
                          const std::string& object_name,
                          std::istream& in_stream)
         : PutObjectReq(bucket_name, object_name), m_in_stream(in_stream) {
+        m_need_compute_contentmd5 = true;
     }
 
     virtual ~PutObjectByStreamReq() {}
 
     std::istream& GetStream() const { return m_in_stream; }
+    // 默认开启MD5上传校验
+    void TurnOnComputeConentMd5() {
+        m_need_compute_contentmd5 = true;
+    }
+
+    void TurnOffComputeConentMd5() {
+        m_need_compute_contentmd5 = false;
+    }
+
+    bool ShouldComputeContentMd5() const {
+        return m_need_compute_contentmd5;
+    }
 
 private:
     std::istream& m_in_stream;
+    bool m_need_compute_contentmd5;
 };
 
 class PutObjectByFileReq : public PutObjectReq {
@@ -281,6 +302,7 @@ public:
         } else {
             m_local_file_path = local_file_path;
         }
+        m_need_compute_contentmd5 = true;
     }
 
     virtual ~PutObjectByFileReq() {}
@@ -290,9 +312,22 @@ public:
     }
 
     std::string GetLocalFilePath() const { return m_local_file_path; }
+    // 默认开启MD5上传校验
+    void TurnOnComputeConentMd5() {
+        m_need_compute_contentmd5 = true;
+    }
+
+    void TurnOffComputeConentMd5() {
+        m_need_compute_contentmd5 = false;
+    }
+
+    bool ShouldComputeContentMd5() const {
+        return m_need_compute_contentmd5;
+    }
 
 private:
     std::string m_local_file_path;
+    bool m_need_compute_contentmd5;
 };
 
 class DeleteObjectReq : public ObjectReq {
@@ -430,7 +465,7 @@ public:
         AddHeader("x-cos-meta-" + key, value);
     }
 
-    /// x-cos-storage-class 设置 Object 的存储级别，枚举值：STANDARD,STANDARD_IA，NEARLINE，
+    /// x-cos-storage-class 设置 Object 的存储级别，枚举值：STANDARD,STANDARD_IA，
     /// 默认值：STANDARD（目前仅支持华南园区）
     void SetXCosStorageClass(const std::string& storage_class) {
         AddHeader("x-cos-storage-class", storage_class);
@@ -462,6 +497,11 @@ public:
     void SetXCosGrantFullControl(const std::string& str) {
         AddHeader("x-cos-grant-full-control", str);
     }
+
+    /// 设置Server端加密使用的算法, 目前支持AES256
+    void SetXCosServerSideEncryption(const std::string& str) {
+        AddHeader("x-cos-server-side-encryption", str);
+    }
 };
 
 class UploadPartDataReq : public ObjectReq {
@@ -470,8 +510,9 @@ public:
                       const std::string& object_name, const std::string& upload_id,
                       std::istream& in_stream)
         : ObjectReq(bucket_name, object_name),
-          m_upload_id(upload_id), m_part_number(1), m_in_stream(in_stream) {
+          m_in_stream(in_stream), m_upload_id(upload_id), m_part_number(1)  {
         m_method = "PUT";
+        m_need_compute_contentmd5 = true;
     }
 
     /// \brief 设置本次分块上传的ID
@@ -486,11 +527,24 @@ public:
     uint64_t GetPartNumber() const { return m_part_number; }
 
     std::istream& GetStream() const { return m_in_stream; }
+    // 默认开启MD5上传校验
+    void TurnOnComputeConentMd5() {
+        m_need_compute_contentmd5 = true;
+    }
+
+    void TurnOffComputeConentMd5() {
+        m_need_compute_contentmd5 = false;
+    }
+
+    bool ShouldComputeContentMd5() const {
+        return m_need_compute_contentmd5;
+    }
 
 private:
     std::istream& m_in_stream;
     std::string m_upload_id;
     uint64_t m_part_number;
+    bool m_need_compute_contentmd5;
 };
 
 class UploadPartCopyDataReq : public ObjectReq {
@@ -647,6 +701,11 @@ public:
     }
 
     int GetThreadPoolSize() const { return m_thread_pool_size; }
+
+    /// 设置Server端加密使用的算法, 目前支持AES256
+    void SetXCosServerSideEncryption(const std::string& str) {
+        AddHeader("x-cos-server-side-encryption", str);
+    }
 
 private:
     std::string m_local_file_path;
@@ -828,7 +887,7 @@ public:
         AddHeader("x-cos-copy-source-If-None-Match", str);
     }
 
-    /// x-cos-storage-class 设置 Object 的存储级别，枚举值：STANDARD,STANDARD_IA，NEARLINE，
+    /// x-cos-storage-class 设置 Object 的存储级别，枚举值：STANDARD,STANDARD_IA，
     /// 默认值：STANDARD（目前仅支持华南园区）
     void SetXCosStorageClass(const std::string& storage_class) {
         AddHeader("x-cos-storage-class", storage_class);
@@ -864,6 +923,11 @@ public:
     /// 允许用户自定义的头部信息,将作为 Object 元数据返回.大小限制2K
     void SetXCosMeta(const std::string& key, const std::string& value) {
         AddHeader("x-cos-meta-" + key, value);
+    }
+
+    /// 设置Server端加密使用的算法, 目前支持AES256
+    void SetXCosServerSideEncryption(const std::string& str) {
+        AddHeader("x-cos-server-side-encryption", str);
     }
 };
 
@@ -916,7 +980,7 @@ public:
         AddHeader("x-cos-copy-source-If-None-Match", str);
     }
 
-    /// x-cos-storage-class 设置 Object 的存储级别，枚举值：STANDARD,STANDARD_IA，NEARLINE，
+    /// x-cos-storage-class 设置 Object 的存储级别，枚举值：STANDARD,STANDARD_IA
     /// 默认值：STANDARD（目前仅支持华南园区）
     void SetXCosStorageClass(const std::string& storage_class) {
         AddHeader("x-cos-storage-class", storage_class);

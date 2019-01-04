@@ -12,13 +12,14 @@
 
 namespace qcloud_cos {
 
-int CosAPI::s_init = 0;
+bool CosAPI::s_init = false;
+bool CosAPI::s_poco_init = false;
 int CosAPI::s_cos_obj_num = 0;
 SimpleMutex CosAPI::s_init_mutex = SimpleMutex();
 boost::threadpool::pool* g_threadpool = NULL;
 
 CosAPI::CosAPI(CosConfig& config)
-    : m_object_op(config), m_bucket_op(config), m_service_op(config) {
+    : m_config(new CosConfig(config)), m_object_op(m_config), m_bucket_op(m_config), m_service_op(m_config) {
     CosInit();
 }
 
@@ -30,12 +31,15 @@ int CosAPI::CosInit() {
     SimpleMutexLocker locker(&s_init_mutex);
     ++s_cos_obj_num;
     if (!s_init) {
-        Poco::Net::HTTPStreamFactory::registerFactory();
-        Poco::Net::HTTPSStreamFactory::registerFactory();
-        Poco::Net::initializeSSL();
+        if (!s_poco_init) {
+            Poco::Net::HTTPStreamFactory::registerFactory();
+            Poco::Net::HTTPSStreamFactory::registerFactory();
+            Poco::Net::initializeSSL();
+            s_poco_init = true;
+        }
 
-        s_init = true;
         g_threadpool = new boost::threadpool::pool(CosSysConfig::GetAsynThreadPoolSize());
+        s_init = true;
     }
 
     return 0;
@@ -48,10 +52,15 @@ void CosAPI::CosUInit() {
         if (g_threadpool){
             g_threadpool->wait();
             delete g_threadpool;
+            g_threadpool = NULL;
         }
 
         s_init = false;
     }
+}
+
+void CosAPI::SetCredentail(const std::string& ak, const std::string& sk, const std::string& token){
+    m_config->SetConfigCredentail(ak,sk,token);
 }
 
 bool CosAPI::IsBucketExist(const std::string& bucket_name) {
@@ -91,6 +100,10 @@ std::string CosAPI::GetBucketLocation(const std::string& bucket_name) {
 
 CosResult CosAPI::GetService(const GetServiceReq& request, GetServiceResp* response) {
     return m_service_op.GetService(request, response);
+}
+
+CosResult CosAPI::HeadBucket(const HeadBucketReq& request, HeadBucketResp* response) {
+    return m_bucket_op.HeadBucket(request, response);
 }
 
 CosResult CosAPI::PutBucket(const PutBucketReq& request, PutBucketResp* response) {

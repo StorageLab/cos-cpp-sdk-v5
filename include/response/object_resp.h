@@ -32,7 +32,7 @@ public:
         m_x_cos_object_type = x_cos_object_type;
     }
 
-    /// \brief 获取Object 的存储级别，枚举值：STANDARD，STANDARD_IA，NEARLINE
+    /// \brief 获取Object 的存储级别，枚举值：STANDARD，STANDARD_IA
     std::string GetXCosStorageClass() const { return m_x_cos_storage_class; }
     void SetXCosStorageClass(const std::string& x_cos_storage_class) {
         m_x_cos_storage_class = x_cos_storage_class;
@@ -42,7 +42,7 @@ public:
     std::map<std::string, std::string> GetXCosMetas() const { return m_x_cos_metas; }
     /// \brief 获取自定义的元数据
     std::string GetXCosMeta(const std::string& key) const {
-        std::map<std::string, std::string>::const_iterator itr = m_x_cos_metas.begin();
+        std::map<std::string, std::string>::const_iterator itr = m_x_cos_metas.find(key);
         if (itr != m_x_cos_metas.end()) {
             return itr->second;
         }
@@ -50,6 +50,11 @@ public:
     }
     void SetXCosMeta(const std::string& key, const std::string& value) {
         m_x_cos_metas[key] = value;
+    }
+
+    /// \brief Server端加密使用的算法
+    std::string GetXCosServerSideEncryption() const {
+        return GetHeader("x-cos-server-side-encryption");
     }
 
     void ParseFromHeaders(const std::map<std::string, std::string>& headers);
@@ -81,6 +86,11 @@ class MultiGetObjectResp : public GetObjectResp {
 public:
     MultiGetObjectResp() {}
     virtual ~MultiGetObjectResp() {}
+
+    /// Server端加密使用的算法
+    std::string GetXCosServerSideEncryption() const {
+        return GetHeader("x-cos-server-side-encryption");
+    }
 };
 
 class PutObjectResp : public BaseResp {
@@ -89,7 +99,13 @@ protected:
     virtual ~PutObjectResp() {}
 
 public:
+    /// 获取Object的版本号, 如果Bucket未开启多版本, 返回空字符串
     std::string GetVersionId() const { return GetHeader("x-cos-version-id"); }
+
+    /// Server端加密使用的算法
+    std::string GetXCosServerSideEncryption() const {
+        return GetHeader("x-cos-server-side-encryption");
+    }
 };
 
 class PutObjectByStreamResp : public PutObjectResp {
@@ -147,7 +163,7 @@ public:
         m_x_cos_object_type = x_cos_object_type;
     }
 
-    /// \brief 获取Object 的存储级别，枚举值：STANDARD，STANDARD_IA，NEARLINE
+    /// \brief 获取Object 的存储级别，枚举值：STANDARD，STANDARD_IA
     std::string GetXCosStorageClass() const { return m_x_cos_storage_class; }
     void SetXCosStorageClass(const std::string& x_cos_storage_class) {
         m_x_cos_storage_class = x_cos_storage_class;
@@ -157,7 +173,7 @@ public:
     std::map<std::string, std::string> GetXCosMetas() const { return m_x_cos_metas; }
     /// \brief 获取自定义的元数据
     std::string GetXCosMeta(const std::string& key) const {
-        std::map<std::string, std::string>::const_iterator itr = m_x_cos_metas.begin();
+        std::map<std::string, std::string>::const_iterator itr = m_x_cos_metas.find(key);
         if (itr != m_x_cos_metas.end()) {
             return itr->second;
         }
@@ -170,6 +186,11 @@ public:
     /// \brief 获得 archive 类型对象的当前恢复状态
     std::string GetXCosRestore() const {
         return GetHeader("x-cos-restore");
+    }
+
+    /// \brief Server端加密使用的算法
+    std::string GetXCosServerSideEncryption() const {
+        return GetHeader("x-cos-server-side-encryption");
     }
 
     void ParseFromHeaders(const std::map<std::string, std::string>& headers);
@@ -197,6 +218,11 @@ public:
     /// \brief 分片上传的目标Bucket
     std::string GetBucket() const { return m_bucket; }
 
+    /// \brief Server端加密使用的算法
+    std::string GetXCosServerSideEncryption() const {
+        return GetHeader("x-cos-server-side-encryption");
+    }
+
 private:
     std::string m_bucket;
     std::string m_key; // object名称
@@ -207,6 +233,11 @@ class UploadPartDataResp : public BaseResp {
 public:
     UploadPartDataResp() {}
     virtual ~UploadPartDataResp() {}
+
+    /// \brief Server端加密使用的算法
+    std::string GetXCosServerSideEncryption() const {
+        return GetHeader("x-cos-server-side-encryption");
+    }
 };
 
 class UploadPartCopyDataResp : public BaseResp {
@@ -222,6 +253,11 @@ public:
 
     /// \brief 返回文件最后修改时间，GMT 格式
     std::string GetLastModified() const { return m_last_modified; }
+
+    /// \brief Server端加密使用的算法
+    std::string GetXCosServerSideEncryption() const {
+        return GetHeader("x-cos-server-side-encryption");
+    }
 
 private:
     std::string m_etag;
@@ -239,6 +275,11 @@ public:
     std::string GetKey() const { return m_key; }
     std::string GetBucket() const { return m_bucket; }
     std::string GetVersionId() const { return GetHeader("x-cos-version-id"); }
+
+    /// \brief Server端加密使用的算法
+    std::string GetXCosServerSideEncryption() const {
+        return GetHeader("x-cos-server-side-encryption");
+    }
 
 private:
     std::string m_location; // Object的外网访问域名
@@ -271,6 +312,11 @@ public:
     void CopyFrom(const UploadPartDataResp& resp);
 
     void CopyFrom(const CompleteMultiUploadResp& resp);
+
+    /// \brief Server端加密使用的算法
+    std::string GetXCosServerSideEncryption() const {
+        return GetHeader("x-cos-server-side-encryption");
+    }
 
 private:
     std::string m_location; // Object的外网访问域名
@@ -369,6 +415,12 @@ public:
     std::string GetEtag() const { return m_etag; }
     std::string GetLastModified() const { return m_last_modified; }
     std::string GetVersionId() const { return m_version_id; }
+
+    /// Server端加密使用的算法
+    std::string GetXCosServerSideEncryption() const {
+        return GetHeader("x-cos-server-side-encryption");
+    }
+
 private:
     std::string m_etag;
     std::string m_last_modified;

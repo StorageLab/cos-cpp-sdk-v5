@@ -1,4 +1,4 @@
-// Copyright 2007-2010 Baptiste Lepilleur
+// Copyright 2007-2010 Baptiste Lepilleur and The JsonCpp Authors
 // Distributed under MIT license, or public domain if desired and
 // recognized in your jurisdiction.
 // See file LICENSE for detail or copy at http://jsoncpp.sourceforge.net/LICENSE
@@ -12,9 +12,9 @@
 #endif // if !defined(JSON_IS_AMALGAMATION)
 #include <deque>
 #include <iosfwd>
+#include <istream>
 #include <stack>
 #include <string>
-#include <istream>
 
 // Disable warning C4251: <data member>: <type> needs to have dll-interface to
 // be used by...
@@ -22,6 +22,8 @@
 #pragma warning(push)
 #pragma warning(disable : 4251)
 #endif // if defined(JSONCPP_DISABLE_DLL_INTERFACE_WARNING)
+
+#pragma pack(push, 8)
 
 namespace Json {
 
@@ -42,19 +44,21 @@ public:
    *
    */
   struct StructuredError {
-    size_t offset_start;
-    size_t offset_limit;
-    std::string message;
+    ptrdiff_t offset_start;
+    ptrdiff_t offset_limit;
+    JSONCPP_STRING message;
   };
 
   /** \brief Constructs a Reader allowing all features
    * for parsing.
    */
+  JSONCPP_DEPRECATED("Use CharReader and CharReaderBuilder instead")
   Reader();
 
   /** \brief Constructs a Reader allowing the specified feature set
    * for parsing.
    */
+  JSONCPP_DEPRECATED("Use CharReader and CharReaderBuilder instead")
   Reader(const Features& features);
 
   /** \brief Read a Value from a <a HREF="http://www.json.org">JSON</a>
@@ -99,7 +103,7 @@ public:
 
   /// \brief Parse from input stream.
   /// \see Json::operator>>(std::istream&, Json::Value&).
-  bool parse(std::istream& is, Value& root, bool collectComments = true);
+  bool parse(JSONCPP_ISTREAM& is, Value& root, bool collectComments = true);
 
   /** \brief Returns a user friendly string that list errors in the parsed
    * document.
@@ -111,7 +115,7 @@ public:
    * \deprecated Use getFormattedErrorMessages() instead (typo fix).
    */
   JSONCPP_DEPRECATED("Use getFormattedErrorMessages() instead.")
-  std::string getFormatedErrorMessages() const;
+  JSONCPP_STRING getFormatedErrorMessages() const;
 
   /** \brief Returns a user friendly string that list errors in the parsed
    * document.
@@ -121,7 +125,7 @@ public:
    * occurred
    *         during parsing.
    */
-  std::string getFormattedErrorMessages() const;
+  JSONCPP_STRING getFormattedErrorMessages() const;
 
   /** \brief Returns a vector of structured erros encounted while parsing.
    * \return A (possibly empty) vector of StructuredError objects. Currently
@@ -138,7 +142,7 @@ public:
    * \return \c true if the error was successfully added, \c false if the
    * Value offset exceeds the document size.
    */
-  bool pushError(const Value& value, const std::string& message);
+  bool pushError(const Value& value, const JSONCPP_STRING& message);
 
   /** \brief Add a semantic error message with extra context.
    * \param value JSON Value location associated with the error
@@ -147,7 +151,9 @@ public:
    * \return \c true if the error was successfully added, \c false if either
    * Value offset exceeds the document size.
    */
-  bool pushError(const Value& value, const std::string& message, const Value& extra);
+  bool pushError(const Value& value,
+                 const JSONCPP_STRING& message,
+                 const Value& extra);
 
   /** \brief Return whether there are any errors.
    * \return \c true if there are no errors to report \c false if
@@ -183,7 +189,7 @@ private:
   class ErrorInfo {
   public:
     Token token_;
-    std::string message_;
+    JSONCPP_STRING message_;
     Location extra_;
   };
 
@@ -203,7 +209,7 @@ private:
   bool decodeNumber(Token& token);
   bool decodeNumber(Token& token, Value& decoded);
   bool decodeString(Token& token);
-  bool decodeString(Token& token, std::string& decoded);
+  bool decodeString(Token& token, JSONCPP_STRING& decoded);
   bool decodeDouble(Token& token);
   bool decodeDouble(Token& token, Value& decoded);
   bool decodeUnicodeCodePoint(Token& token,
@@ -214,9 +220,10 @@ private:
                                    Location& current,
                                    Location end,
                                    unsigned int& unicode);
-  bool addError(const std::string& message, Token& token, Location extra = 0);
+  bool
+  addError(const JSONCPP_STRING& message, Token& token, Location extra = 0);
   bool recoverFromError(TokenType skipUntilToken);
-  bool addErrorAndRecover(const std::string& message,
+  bool addErrorAndRecover(const JSONCPP_STRING& message,
                           Token& token,
                           TokenType skipUntilToken);
   void skipUntilSpace();
@@ -224,23 +231,26 @@ private:
   Char getNextChar();
   void
   getLocationLineAndColumn(Location location, int& line, int& column) const;
-  std::string getLocationLineAndColumn(Location location) const;
+  JSONCPP_STRING getLocationLineAndColumn(Location location) const;
   void addComment(Location begin, Location end, CommentPlacement placement);
   void skipCommentTokens(Token& token);
+
+  static bool containsNewLine(Location begin, Location end);
+  static JSONCPP_STRING normalizeEOL(Location begin, Location end);
 
   typedef std::stack<Value*> Nodes;
   Nodes nodes_;
   Errors errors_;
-  std::string document_;
+  JSONCPP_STRING document_;
   Location begin_;
   Location end_;
   Location current_;
   Location lastValueEnd_;
   Value* lastValue_;
-  std::string commentsBefore_;
+  JSONCPP_STRING commentsBefore_;
   Features features_;
   bool collectComments_;
-};  // Reader
+}; // Reader
 
 /** Interface for reading JSON from a char array.
  */
@@ -249,7 +259,8 @@ public:
   virtual ~CharReader() {}
   /** \brief Read a Value from a <a HREF="http://www.json.org">JSON</a>
    document.
-   * The document must be a UTF-8 encoded string containing the document to read.
+   * The document must be a UTF-8 encoded string containing the document to
+   read.
    *
    * \param beginDoc Pointer on the beginning of the UTF-8 encoded string of the
    document to read.
@@ -264,19 +275,20 @@ public:
    * \return \c true if the document was successfully parsed, \c false if an
    error occurred.
    */
-  virtual bool parse(
-      char const* beginDoc, char const* endDoc,
-      Value* root, std::string* errs) = 0;
+  virtual bool parse(char const* beginDoc,
+                     char const* endDoc,
+                     Value* root,
+                     JSONCPP_STRING* errs) = 0;
 
-  class Factory {
+  class JSON_API Factory {
   public:
     virtual ~Factory() {}
     /** \brief Allocate a CharReader via operator new().
      * \throw std::exception if something goes wrong (e.g. invalid settings)
      */
     virtual CharReader* newCharReader() const = 0;
-  };  // Factory
-};  // CharReader
+  }; // Factory
+};   // CharReader
 
 /** \brief Build a CharReader implementation.
 
@@ -286,7 +298,7 @@ Usage:
   CharReaderBuilder builder;
   builder["collectComments"] = false;
   Value value;
-  std::string errs;
+  JSONCPP_STRING errs;
   bool ok = parseFromStream(builder, std::cin, &value, &errs);
 \endcode
 */
@@ -306,7 +318,8 @@ public:
     - `"strictRoot": false or true`
       - true if root must be either an array or an object value
     - `"allowDroppedNullPlaceholders": false or true`
-      - true if dropped null placeholders are allowed. (See StreamWriterBuilder.)
+      - true if dropped null placeholders are allowed. (See
+    StreamWriterBuilder.)
     - `"allowNumericKeys": false or true`
       - true if numeric object keys are allowed.
     - `"allowSingleQuotes": false or true`
@@ -320,7 +333,11 @@ public:
       - If true, `parse()` returns false when extra non-whitespace trails
         the JSON value in the input string.
     - `"rejectDupKeys": false or true`
-      - If true, `parse()` returns false when a key is duplicated within an object.
+      - If true, `parse()` returns false when a key is duplicated within an
+    object.
+    - `"allowSpecialFloats": false or true`
+      - If true, special float values (NaNs and infinities) are allowed
+        and their values are lossfree restorable.
 
     You can examine 'settings_` yourself
     to see the defaults. You can also write and read them just like any
@@ -330,9 +347,9 @@ public:
   Json::Value settings_;
 
   CharReaderBuilder();
-  virtual ~CharReaderBuilder();
+  ~CharReaderBuilder() JSONCPP_OVERRIDE;
 
-  virtual CharReader* newCharReader() const;
+  CharReader* newCharReader() const JSONCPP_OVERRIDE;
 
   /** \return true if 'settings' are legal and consistent;
    *   otherwise, indicate bad settings via 'invalid'.
@@ -341,7 +358,7 @@ public:
 
   /** A simple way to update a specific setting.
    */
-  Value& operator[](std::string key);
+  Value& operator[](JSONCPP_STRING key);
 
   /** Called by ctor, but you can use this to reset settings_.
    * \pre 'settings' != NULL (but Json::null is fine)
@@ -358,13 +375,13 @@ public:
 };
 
 /** Consume entire stream and use its begin/end.
-  * Someday we might have a real StreamReader, but for now this
-  * is convenient.
-  */
-bool JSON_API parseFromStream(
-    CharReader::Factory const&,
-    std::istream&,
-    Value* root, std::string* errs);
+ * Someday we might have a real StreamReader, but for now this
+ * is convenient.
+ */
+bool JSON_API parseFromStream(CharReader::Factory const&,
+                              JSONCPP_ISTREAM&,
+                              Value* root,
+                              std::string* errs);
 
 /** \brief Read from 'sin' into 'root'.
 
@@ -390,9 +407,11 @@ bool JSON_API parseFromStream(
  \throw std::exception on parse error.
  \see Json::operator<<()
 */
-JSON_API std::istream& operator>>(std::istream&, Value&);
+JSON_API JSONCPP_ISTREAM& operator>>(JSONCPP_ISTREAM&, Value&);
 
 } // namespace Json
+
+#pragma pack(pop)
 
 #if defined(JSONCPP_DISABLE_DLL_INTERFACE_WARNING)
 #pragma warning(pop)

@@ -122,7 +122,7 @@ std::string CodecUtil::HmacSha1Hex(const std::string& plain_text,const std::stri
     char hex[(HMAC_LENGTH<<1)+1] = {0};
     BinToHex((const unsigned char*)encode_str.c_str(), encode_str.size(), hex);
 
-    return std::string(hex, (HMAC_LENGTH << 1) + 1);
+    return std::string(hex, (HMAC_LENGTH << 1));
 }
 
 std::string CodecUtil::RawMd5(const std::string& plainText) {
@@ -133,5 +133,35 @@ std::string CodecUtil::RawMd5(const std::string& plainText) {
     std::string tmp((const char *)md, md5_length);
     return tmp;
 }
+
+// convert a hexadecimal string to binary value
+std::string CodecUtil::HexToBin(const std::string &strHex) {
+    if (strHex.size() % 2 != 0) {
+        return "";
+    }
+
+    std::string strBin;
+    strBin.resize(strHex.size() / 2);
+    for (size_t i = 0; i < strBin.size(); i++) {
+        uint8_t cTmp = 0;
+        for (size_t j = 0; j < 2; j++) {
+            char cCur = strHex[2 * i + j];
+            if (cCur >= '0' && cCur <= '9') {
+                cTmp = (cTmp << 4) + (cCur - '0');
+            }
+            else if (cCur >= 'a' && cCur <= 'f') {
+                cTmp = (cTmp << 4) + (cCur - 'a' + 10);
+            }
+            else if (cCur >= 'A' && cCur <= 'F') {
+                cTmp = (cTmp << 4) + (cCur - 'A' + 10);
+            }
+            else {
+                return "";
+            }
+        }
+        strBin[i] = cTmp;
+    }
+    return strBin;
+}// end of HexToBin
 
 }
